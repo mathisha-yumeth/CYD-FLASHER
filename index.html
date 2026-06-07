@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CYD Flipper Zero Flasher</title>
+<script src="https://unpkg.com/esptool-js@0.5.7/bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+:root{--or:#FF6B00;--og:rgba(255,107,0,.4);--gr:#39FF14;--re:#FF2222;--bg:#080808;--s1:#111;--s2:#181818;--bd:#252525;--tx:#e0e0e0;--di:#555}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Share Tech Mono',monospace;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;align-items:center}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);pointer-events:none;z-index:999}
+header{width:100%;max-width:840px;padding:26px 22px 14px;text-align:center;border-bottom:1px solid var(--bd)}
+.logo{display:flex;align-items:center;justify-content:center;gap:13px;margin-bottom:5px}
+.dol{width:44px;height:44px;border:2px solid var(--or);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:21px;animation:glo 2s ease-in-out infinite}
+@keyframes glo{0%,100%{box-shadow:0 0 8px var(--og)}50%{box-shadow:0 0 20px var(--og),0 0 38px rgba(255,107,0,.12)}}
+h1{font-family:'Orbitron',monospace;font-size:19px;font-weight:900;color:var(--or);letter-spacing:3px;text-shadow:0 0 16px var(--og)}
+.sub{font-size:10px;color:var(--di);letter-spacing:2px;margin-top:3px}
+.badge{display:inline-block;background:rgba(57,255,20,.08);border:1px solid #1a7a00;color:var(--gr);font-size:10px;padding:2px 8px;border-radius:2px;letter-spacing:1px;margin-top:5px}
+main{width:100%;max-width:840px;padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:4px;padding:17px;position:relative}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--or),transparent);opacity:.35}
+.ct{font-family:'Orbitron',monospace;font-size:10px;color:var(--or);letter-spacing:2px;text-transform:uppercase;margin-bottom:13px}
+.steps{display:flex;align-items:flex-start}
+.step{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.sn{width:25px;height:25px;border-radius:50%;border:2px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--di);transition:all .3s}
+.step.active .sn{border-color:var(--or);color:var(--or);box-shadow:0 0 9px var(--og)}
+.step.done .sn{border-color:var(--gr);color:var(--gr);background:rgba(57,255,20,.1)}
+.sl{font-size:9px;color:var(--di);letter-spacing:1px}
+.step.active .sl{color:var(--or)}.step.done .sl{color:var(--gr)}
+.sli{flex:1;height:2px;background:var(--bd);margin-top:11px;max-width:55px;align-self:flex-start}
+.tabbar{display:flex;border-bottom:1px solid var(--bd);margin-bottom:13px}
+.tab{padding:7px 13px;font-size:10px;letter-spacing:1px;color:var(--di);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
+.tab.on{color:var(--or);border-bottom-color:var(--or)}
+.tp{display:none}.tp.on{display:block}
+label{display:block;font-size:10px;color:var(--di);letter-spacing:1px;margin-bottom:4px;text-transform:uppercase}
+select{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:3px;color:var(--tx);font-family:'Share Tech Mono',monospace;font-size:13px;padding:8px 10px;outline:none;cursor:pointer;transition:border-color .2s;appearance:none;-webkit-appearance:none}
+select:hover,select:focus{border-color:var(--or)}
+input[type=file]{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:3px;color:var(--tx);font-family:'Share Tech Mono',monospace;font-size:11px;padding:7px;cursor:pointer}
+input[type=file]::file-selector-button{background:var(--s2);border:1px solid #cc5500;color:var(--or);font-family:'Share Tech Mono',monospace;font-size:10px;padding:3px 9px;cursor:pointer;margin-right:9px;border-radius:2px;letter-spacing:1px}
+.fr{margin-bottom:13px}.fr:last-child{margin-bottom:0}
+.fwg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:13px}
+.fwc{border:2px solid var(--bd);border-radius:4px;padding:11px;cursor:pointer;transition:all .2s;position:relative}
+.fwc:hover{border-color:#cc5500}
+.fwc.on{border-color:var(--or);background:rgba(255,107,0,.04)}
+.fwc.on::after{content:'✓';position:absolute;top:7px;right:9px;color:var(--or);font-size:13px}
+.fn{font-family:'Orbitron',monospace;font-size:11px;color:var(--tx);margin-bottom:3px}
+.fd{font-size:10px;color:var(--di);line-height:1.5}
+.fv{font-size:10px;color:var(--gr);margin-top:3px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:10px 18px;border:none;border-radius:3px;cursor:pointer;transition:all .2s}
+.bp{background:var(--or);color:#000;width:100%}
+.bp:hover:not(:disabled){background:#ff8800;box-shadow:0 0 16px var(--og)}
+.bp:disabled{opacity:.3;cursor:not-allowed}
+.bs{background:transparent;color:var(--di);border:1px solid var(--bd);font-size:10px;padding:8px 14px}
+.bs:hover:not(:disabled){border-color:var(--di);color:var(--tx)}
+.bs:disabled{opacity:.3;cursor:not-allowed}
+.bd2{background:transparent;color:var(--re);border:1px solid rgba(255,34,34,.35);font-size:10px;padding:8px 14px}
+.bd2:hover:not(:disabled){background:rgba(255,34,34,.07)}
+.bd2:disabled{opacity:.3;cursor:not-allowed}
+.brow{display:flex;gap:8px;margin-top:13px}
+.sbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:3px;margin-bottom:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--di);flex-shrink:0;transition:background .3s}
+.dot.ok{background:var(--gr);animation:blk 1.5s ease-in-out infinite}
+.dot.er{background:var(--re)}
+.dot.bz{background:var(--or);animation:blk .4s ease-in-out infinite}
+@keyframes blk{0%,100%{opacity:1}50%{opacity:.2}}
+.stxt{font-size:12px;color:var(--tx);flex:1}
+.chip{font-size:10px;color:var(--di);background:var(--s1);border:1px solid var(--bd);padding:2px 7px;border-radius:2px;white-space:nowrap}
+.pw{margin-bottom:13px}
+.pm{display:flex;justify-content:space-between;font-size:10px;color:var(--di);margin-bottom:4px}
+.pb{height:7px;background:var(--s2);border:1px solid var(--bd);border-radius:2px;overflow:hidden}
+.pf{height:100%;background:linear-gradient(90deg,#cc5500,var(--or));width:0%;transition:width .25s;box-shadow:0 0 6px var(--og)}
+.term{background:#030303;border:1px solid var(--bd);border-radius:3px;padding:11px;height:200px;overflow-y:auto;font-size:11px;line-height:1.65;font-family:'Share Tech Mono',monospace}
+.term::-webkit-scrollbar{width:3px}
+.term::-webkit-scrollbar-track{background:#000}
+.term::-webkit-scrollbar-thumb{background:var(--bd)}
+.ll{display:block}.li{color:#555}.lo{color:var(--gr)}.lw{color:#ffaa00}.le{color:var(--re)}.ld{color:#5599ff}.lf{color:var(--or)}.lb{color:var(--tx)}
+.ib{background:rgba(255,107,0,.04);border:1px solid rgba(255,107,0,.15);border-radius:3px;padding:9px 12px;font-size:11px;color:var(--di);line-height:1.65;margin-bottom:13px}
+.ib strong{color:var(--or)}
+.ib a{color:var(--or)}
+.wb{background:rgba(255,34,34,.04);border:1px solid rgba(255,34,34,.2);border-radius:3px;padding:9px 12px;font-size:11px;color:#ff9999;line-height:1.65;margin-bottom:13px}
+.diag{background:rgba(57,255,20,.03);border:1px solid rgba(57,255,20,.15);border-radius:3px;padding:9px 12px;font-size:11px;color:var(--di);line-height:1.65;margin-top:10px;display:none}
+.diag.show{display:block}
+.diag strong{color:var(--gr)}
+.at{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px}
+.at th{text-align:left;color:var(--di);padding:3px 6px;border-bottom:1px solid var(--bd);font-weight:normal;letter-spacing:1px}
+.at td{padding:5px 6px;border-bottom:1px solid #161616}
+.at td:nth-child(2){color:#5599ff}.at td:nth-child(3){color:var(--or)}
+.noser{background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.25);border-radius:3px;padding:10px 13px;font-size:11px;color:#ffcc44;text-align:center;display:none}
+.sec{display:none}.sec.on{display:block}
+.dc{text-align:center;padding:16px 0}
+.de{font-size:42px;margin-bottom:9px}
+.dt{font-family:'Orbitron',monospace;font-size:16px;color:var(--gr);margin-bottom:7px;text-shadow:0 0 16px rgba(57,255,20,.35)}
+.ds{font-size:11px;color:var(--di);line-height:1.85;max-width:400px;margin:0 auto}
+.ds strong{color:var(--tx)}
+footer{width:100%;max-width:840px;padding:13px 22px;border-top:1px solid var(--bd);text-align:center;font-size:10px;color:var(--di);letter-spacing:1px}
+footer a{color:#cc5500;text-decoration:none}
+@media(max-width:480px){.fwg{grid-template-columns:1fr}h1{font-size:14px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="dol">🐬</div>
+    <div>
+      <h1>CYD FLIPPER FLASHER</h1>
+      <div class="sub">ESP32-2432S028 &nbsp;·&nbsp; WEB SERIAL &nbsp;·&nbsp; ESPTOOL-JS</div>
+    </div>
+  </div>
+  <div class="badge">⚡ REAL MARAUDER FIRMWARE &nbsp;·&nbsp; FLIPPER MOBILE APP COMPATIBLE</div>
+</header>
+
+<main>
+
+<div class="noser" id="noSer">
+  ⚠ Web Serial requires <strong>Chrome, Edge, or Opera</strong> on desktop. Firefox / Safari / mobile not supported.
+</div>
+
+<div class="card">
+  <div class="steps">
+    <div class="step active" id="s1"><div class="sn">1</div><div class="sl">FIRMWARE</div></div>
+    <div class="sli"></div>
+    <div class="step" id="s2"><div class="sn">2</div><div class="sl">CONNECT</div></div>
+    <div class="sli"></div>
+    <div class="step" id="s3"><div class="sn">3</div><div class="sl">FLASH</div></div>
+    <div class="sli"></div>
+    <div class="step" id="s4"><div class="sn">4</div><div class="sl">DONE</div></div>
+  </div>
+</div>
+
+<!-- SEC 1: Firmware -->
+<div class="card sec on" id="sec1">
+  <div class="ct">// 01 · SELECT FIRMWARE</div>
+  <div class="ib">
+    <strong>CYD</strong> = ESP32-2432S028 "Cheap Yellow Display" — ESP32 with built-in 2.8" touch TFT.<br>
+    <strong>Marauder</strong> = official Flipper Zero WiFi Dev Board firmware, compatible with <strong>Flipper Zero Mobile App</strong> via BLE.
+  </div>
+  <div class="tabbar">
+    <div class="tab on" id="tbt-pre" onclick="swTab('pre')">PRESET FIRMWARE</div>
+    <div class="tab" id="tbt-cus" onclick="swTab('cus')">CUSTOM .BIN FILES</div>
+  </div>
+
+  <div class="tp on" id="tp-pre">
+    <div class="fwg">
+      <div class="fwc on" id="fwc-mr"  onclick="selFw('mr')"><div class="fn">ESP32 MARAUDER</div><div class="fd">WiFi/BT toolkit. Works with Flipper Mobile App via BLE.</div><div class="fv">latest · CYD 2432S028</div></div>
+      <div class="fwc"    id="fwc-mrg" onclick="selFw('mrg')"><div class="fn">MARAUDER + GPS</div><div class="fd">Marauder with GPS wardriving. Needs GPS on UART.</div><div class="fv">latest · CYD + GPS</div></div>
+      <div class="fwc"    id="fwc-mr2" onclick="selFw('mr2')"><div class="fn">MARAUDER CYD2USB</div><div class="fd">Dual-USB CYD variant (Koko build).</div><div class="fv">latest · CYD2USB</div></div>
+      <div class="fwc"    id="fwc-nm"  onclick="selFw('nm')"><div class="fn">NEMO FIRMWARE</div><div class="fd">Alt Flipper companion. BLE spam, deauth, beacon flood.</div><div class="fv">latest · CYD</div></div>
+    </div>
+    <div class="fr">
+      <label>BOARD VARIANT</label>
+      <select id="bsel" onchange="updateFwInfo()">
+        <option value="s">CYD 2432S028 — Single USB (most common)</option>
+        <option value="d">CYD 2432S028 — Dual USB (CYD2USB / Koko)</option>
+        <option value="x">CYD 3248S035 — 3.5&quot; variant</option>
+      </select>
+    </div>
+    <div class="ib" id="fwinfo" style="margin-bottom:0">
+      <strong>ESP32 Marauder — CYD 2432S028</strong><br>
+      <table class="at"><tr><th>PART</th><th>ADDRESS</th><th>FILE</th></tr>
+      <tr><td>Bootloader</td><td>0x1000</td><td>bootloader.bin</td></tr>
+      <tr><td>Partitions</td><td>0x8000</td><td>partitions.bin</td></tr>
+      <tr><td>boot_app0</td><td>0xE000</td><td>boot_app0.bin</td></tr>
+      <tr><td>Firmware</td><td>0x10000</td><td>esp32_marauder.CYD.bin</td></tr></table>
+    </div>
+    <div class="brow"><button class="btn bp" onclick="goTo(2)">NEXT: CONNECT DEVICE →</button></div>
+  </div>
+
+  <div class="tp" id="tp-cus">
+    <div class="wb">⚠ Advanced: supply all 4 binary parts at the exact addresses. Wrong addresses will brick the device.</div>
+    <div class="fr"><label>BOOTLOADER @ 0x1000</label><input type="file" accept=".bin" id="fb" onchange="chkCus()"></div>
+    <div class="fr"><label>PARTITION TABLE @ 0x8000</label><input type="file" accept=".bin" id="fp" onchange="chkCus()"></div>
+    <div class="fr"><label>BOOT APP0 @ 0xE000</label><input type="file" accept=".bin" id="fa" onchange="chkCus()"></div>
+    <div class="fr"><label>MAIN FIRMWARE @ 0x10000</label><input type="file" accept=".bin" id="ff" onchange="chkCus()"></div>
+    <div class="brow"><button class="btn bp" id="cusnxt" onclick="goTo(2)" disabled>NEXT: CONNECT DEVICE →</button></div>
+  </div>
+</div>
+
+<!-- SEC 2: Connect -->
+<div class="card sec" id="sec2">
+  <div class="ct">// 02 · CONNECT DEVICE</div>
+  <div class="ib">
+    <strong>Requirements:</strong> Chrome / Edge / Opera on desktop &nbsp;·&nbsp; USB data cable (not charge-only)<br><br>
+    <strong>Step 1 — Driver:</strong> Most CYDs use a <strong>CP210x</strong> USB chip.
+    If your CYD doesn't appear in the port list, install the driver:
+    <a href="https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers" target="_blank">silabs.com CP210x driver</a>
+    &nbsp;|&nbsp; <a href="https://www.wch-ic.com/downloads/CH341SER_EXE.html" target="_blank">CH340 driver</a><br><br>
+    <strong>Step 2 — Connect:</strong> Click <strong>CONNECT USB</strong> — select <em>any</em> port that appears (CP210x / USB Serial).<br><br>
+    <strong>Step 3 — If sync fails:</strong> Use the <strong>FORCE BOOTLOADER</strong> button below, or manually:
+    hold <strong>BOOT</strong> → press <strong>RST</strong> → release RST → release BOOT → retry connect.
+  </div>
+
+  <div class="sbar">
+    <div class="dot" id="d2"></div>
+    <div class="stxt" id="t2">Not connected</div>
+    <div class="chip" id="c2">—</div>
+  </div>
+
+  <div class="brow" style="margin-top:0;flex-wrap:wrap">
+    <button class="btn bp" id="connBtn" onclick="doConnect()" style="flex:2;min-width:160px">🔌 CONNECT USB</button>
+    <button class="btn bs"  id="bootBtn" onclick="forceBootloader()" disabled>⚡ FORCE BOOTLOADER</button>
+    <button class="btn bs"  id="discBtn" onclick="doDisconnect()" disabled>✕ DISCONNECT</button>
+  </div>
+
+  <div class="diag" id="diag">
+    <strong>🔧 Connection Troubleshooter</strong><br><br>
+    <strong>Port not appearing in picker?</strong><br>
+    • Use a data USB cable (many cables are charge-only — no data pins)<br>
+    • Install CP210x or CH340 driver (links above)<br>
+    • Try a different USB port on your PC<br>
+    • On Windows: check Device Manager for "Unknown Device" or yellow ⚠<br><br>
+    <strong>Port appears but sync fails?</strong><br>
+    • Another app (Arduino IDE, PuTTY, Flipper app) has the port open — close it<br>
+    • Click <strong>FORCE BOOTLOADER</strong> — it sends the DTR/RTS magic sequence<br>
+    • Or manually: hold <strong>BOOT</strong> pin → tap <strong>RST</strong> → release RST → release BOOT<br>
+    • Try 9600 baud in the <strong>BAUD RATE</strong> selector if 115200 fails<br><br>
+    <strong>Keeps timing out?</strong><br>
+    • Some CYD clones need <strong>921600</strong> baud — try the selector below<br>
+    • Unplug, replug, then connect immediately before CYD boots into app firmware
+  </div>
+
+  <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div style="flex:1;min-width:160px">
+      <label>BAUD RATE</label>
+      <select id="baudSel">
+        <option value="115200">115200 (default)</option>
+        <option value="230400">230400</option>
+        <option value="460800">460800</option>
+        <option value="921600">921600 (fast)</option>
+        <option value="9600">9600 (slow / fallback)</option>
+      </select>
+    </div>
+    <div style="align-self:flex-end">
+      <button class="btn bs" onclick="toggleDiag()">🔧 TROUBLESHOOT</button>
+    </div>
+  </div>
+
+  <div class="brow">
+    <button class="btn bs" onclick="goTo(1)" style="flex:1">← BACK</button>
+    <button class="btn bp" id="nxtFlash" onclick="goTo(3)" disabled style="flex:2">NEXT: FLASH →</button>
+  </div>
+</div>
+
+<!-- SEC 3: Flash -->
+<div class="card sec" id="sec3">
+  <div class="ct">// 03 · FLASH FIRMWARE</div>
+  <div class="sbar">
+    <div class="dot ok" id="d3"></div>
+    <div class="stxt" id="t3">Connected</div>
+    <div class="chip" id="c3">—</div>
+  </div>
+  <div class="pw">
+    <div class="pm"><span id="plbl">Ready to flash</span><span id="ppct">0%</span></div>
+    <div class="pb"><div class="pf" id="pfill"></div></div>
+  </div>
+  <div class="term" id="term">
+    <span class="ll li">[CYD FLASHER] Ready — press FLASH FIRMWARE to begin.</span>
+  </div>
+  <div class="brow">
+    <button class="btn bs" id="bkBtn" onclick="goTo(2)" style="flex:1">← BACK</button>
+    <button class="btn bd2" id="erBtn" onclick="doErase()" style="flex:1">🗑 ERASE</button>
+    <button class="btn bp"  id="flBtn" onclick="doFlash()" style="flex:2">⚡ FLASH FIRMWARE</button>
+  </div>
+</div>
+
+<!-- SEC 4: Done -->
+<div class="card sec" id="sec4">
+  <div class="ct">// 04 · COMPLETE</div>
+  <div class="dc">
+    <div class="de">🐬</div>
+    <div class="dt">FIRMWARE FLASHED!</div>
+    <div class="ds">
+      Unplug and replug the CYD (or press <strong>RST</strong>) to boot.<br><br>
+      Open the <strong style="color:var(--or)">Flipper Zero Mobile App</strong><br>
+      → tap the WiFi icon → connect via BLE to your CYD.
+    </div>
+  </div>
+  <div class="brow" style="justify-content:center">
+    <button class="btn bs" onclick="resetAll()">FLASH ANOTHER DEVICE</button>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/espressif/esptool-js" target="_blank">esptool-js 0.5.7</a> &nbsp;·&nbsp;
+  <a href="https://github.com/justcallmekoko/ESP32Marauder" target="_blank">ESP32 Marauder</a> &nbsp;·&nbsp;
+  For authorized use only
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CYD Flipper Zero Flasher — complete fixed JS
+// BUG FIXES:
+//   1. Firmware manifest was truncated / never completed
+//   2. fetch() used raw GitHub URLs directly — CORS blocked in browser
+//      → now routes all binary downloads through jsDelivr CDN (CORS-safe)
+//   3. nxtFlash button was never re-enabled after successful connect
+//   4. forceBootloader / doConnect / doDisconnect / doFlash / doErase
+//      were completely missing (script was cut off)
+//   5. Web Serial availability check ('serial' in navigator) was missing
+// ═══════════════════════════════════════════════════════════════
+
+// ── Web Serial guard ──────────────────────────────────────────
+// FIX #5: Show warning banner on unsupported browsers immediately
+if (!('serial' in navigator)) {
+  document.getElementById('noSer').style.display = 'block';
+}
+
+// ── Firmware manifest ─────────────────────────────────────────
+// FIX #1 + #2: Complete manifest using jsDelivr CDN (CORS-safe).
+// raw.githubusercontent.com returns CORS errors for browser fetch()
+// jsDelivr mirrors GitHub releases and refs with proper CORS headers.
+
+const CDN  = 'https://cdn.jsdelivr.net/gh/justcallmekoko/ESP32Marauder@master/FlashFiles/MRConfig/';
+const NEMO = 'https://cdn.jsdelivr.net/gh/Binarybox2/Nemo@main/build/';
+
+// Standard ESP32 Marauder support files (shared across all variants)
+const BOOT_BIN = { addr: 0x1000,  url: CDN + 'esp32_marauder.ino.bootloader.bin' };
+const PART_BIN = { addr: 0x8000,  url: CDN + 'esp32_marauder.ino.partitions.bin' };
+const APP0_BIN = { addr: 0xE000,  url: CDN + 'boot_app0.bin' };
+
+// Firmware variants keyed by [fwKey][boardVariant]
+const FW_MAP = {
+  mr: {
+    s: { addr: 0x10000, url: CDN + 'esp32_marauder.CYD2432S028.bin',    label: 'Marauder CYD 2432S028' },
+    d: { addr: 0x10000, url: CDN + 'esp32_marauder.CYD2USB.bin',        label: 'Marauder CYD2USB' },
+    x: { addr: 0x10000, url: CDN + 'esp32_marauder.CYD3248S035C.bin',   label: 'Marauder CYD 3248S035' },
+  },
+  mrg: {
+    s: { addr: 0x10000, url: CDN + 'esp32_marauder.CYD2432S028GPS.bin', label: 'Marauder+GPS CYD 2432S028' },
+    d: { addr: 0x10000, url: CDN + 'esp32_marauder.CYD2USBGPS.bin',     label: 'Marauder+GPS CYD2USB' },
+    x: { addr: 0x10000, url: CDN + 'esp32_marauder.CYD3248S035CGPS.bin',label: 'Marauder+GPS CYD 3248S035' },
+  },
+  mr2: {
+    s: { addr: 0x10000, url: CDN + 'esp32_marauder.CYD2USB.bin',        label: 'Marauder CYD2USB (s)' },
+    d: { addr: 0x10000, url: CDN + 'esp32_marauder.CYD2USB.bin',        label: 'Marauder CYD2USB (d)' },
+    x: { addr: 0x10000, url: CDN + 'esp32_marauder.CYD2USB.bin',        label: 'Marauder CYD2USB (x)' },
+  },
+  nm: {
+    s: { addr: 0x10000, url: NEMO + 'nemo_cyd.bin',                      label: 'Nemo CYD' },
+    d: { addr: 0x10000, url: NEMO + 'nemo_cyd.bin',                      label: 'Nemo CYD' },
+    x: { addr: 0x10000, url: NEMO + 'nemo_cyd.bin',                      label: 'Nemo CYD' },
+  },
+};
+
+// ── State ─────────────────────────────────────────────────────
+let selFwKey  = 'mr';
+let espLoader = null;
+let transport = null;
+let port      = null;
+let isConnected = false;
+
+// ── Helpers ───────────────────────────────────────────────────
+function log(msg, cls = 'lb') {
+  const t = document.getElementById('term');
+  const s = document.createElement('span');
+  s.className = 'll ' + cls;
+  s.textContent = msg;
+  t.appendChild(s);
+  t.scrollTop = t.scrollHeight;
+}
+
+function setProgress(pct, label) {
+  document.getElementById('pfill').style.width = pct + '%';
+  document.getElementById('ppct').textContent  = Math.round(pct) + '%';
+  if (label) document.getElementById('plbl').textContent = label;
+}
+
+function setBusy(busy) {
+  ['flBtn','erBtn','bkBtn'].forEach(id => {
+    document.getElementById(id).disabled = busy;
+  });
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function goTo(n) {
+  document.querySelectorAll('.sec').forEach(el => el.classList.remove('on'));
+  document.getElementById('sec' + n).classList.add('on');
+  // Update step indicators
+  for (let i = 1; i <= 4; i++) {
+    const s = document.getElementById('s' + i);
+    s.classList.remove('active', 'done');
+    if (i < n)  s.classList.add('done');
+    if (i === n) s.classList.add('active');
+  }
+}
+
+function resetAll() {
+  isConnected = false;
+  espLoader   = null;
+  transport   = null;
+  port        = null;
+  setConnStatus(false);
+  document.getElementById('term').innerHTML =
+    '<span class="ll li">[CYD FLASHER] Ready — press FLASH FIRMWARE to begin.</span>';
+  setProgress(0, 'Ready to flash');
+  goTo(1);
+}
+
+// ── Tab / FW selection ────────────────────────────────────────
+function swTab(t) {
+  document.getElementById('tbt-pre').classList.toggle('on', t === 'pre');
+  document.getElementById('tbt-cus').classList.toggle('on', t === 'cus');
+  document.getElementById('tp-pre').classList.toggle('on',  t === 'pre');
+  document.getElementById('tp-cus').classList.toggle('on',  t === 'cus');
+}
+
+function selFw(key) {
+  selFwKey = key;
+  ['mr','mrg','mr2','nm'].forEach(k => {
+    document.getElementById('fwc-' + k).classList.toggle('on', k === key);
+  });
+  updateFwInfo();
+}
+
+function updateFwInfo() {
+  const bv  = document.getElementById('bsel').value;
+  const fw  = FW_MAP[selFwKey]?.[bv];
+  const box = document.getElementById('fwinfo');
+  if (!fw) { box.innerHTML = '<strong style="color:var(--re)">No firmware for this combination.</strong>'; return; }
+  box.innerHTML = `<strong>${fw.label}</strong><br>
+    <table class="at"><tr><th>PART</th><th>ADDRESS</th><th>SOURCE</th></tr>
+    <tr><td>Bootloader</td><td>0x1000</td><td>${BOOT_BIN.url.split('/').pop()}</td></tr>
+    <tr><td>Partitions</td><td>0x8000</td><td>${PART_BIN.url.split('/').pop()}</td></tr>
+    <tr><td>boot_app0</td><td>0xE000</td><td>${APP0_BIN.url.split('/').pop()}</td></tr>
+    <tr><td>Firmware</td><td>0x10000</td><td>${fw.url.split('/').pop()}</td></tr></table>`;
+}
+
+function chkCus() {
+  const ok = ['fb','fp','fa','ff'].every(id => document.getElementById(id).files.length > 0);
+  document.getElementById('cusnxt').disabled = !ok;
+}
+
+// ── Diagnostics ───────────────────────────────────────────────
+function toggleDiag() {
+  document.getElementById('diag').classList.toggle('show');
+}
+
+// ── Connection status UI ──────────────────────────────────────
+function setConnStatus(connected, chipInfo) {
+  isConnected = connected;
+  const dot = document.getElementById('d2');
+  const txt = document.getElementById('t2');
+  const chp = document.getElementById('c2');
+
+  dot.className = 'dot' + (connected ? ' ok' : '');
+  txt.textContent = connected ? 'Connected' : 'Not connected';
+  chp.textContent = chipInfo || '—';
+
+  // FIX #3: enable/disable buttons correctly after connect
+  document.getElementById('connBtn').disabled  = connected;
+  document.getElementById('discBtn').disabled  = !connected;
+  document.getElementById('bootBtn').disabled  = !connected;
+  document.getElementById('nxtFlash').disabled = !connected;  // ← was always disabled (bug)
+
+  // Mirror status to flash screen
+  if (connected) {
+    document.getElementById('d3').className = 'dot ok';
+    document.getElementById('t3').textContent = 'Connected — ' + (chipInfo || '');
+    document.getElementById('c3').textContent = chipInfo || '—';
+  }
+}
+
+// ── Fetch binary with CORS-safe CDN ───────────────────────────
+// FIX #2: All fetches go through jsDelivr (or supplied URL).
+// We do NOT use raw.githubusercontent.com in the browser — CORS blocked.
+async function fetchBin(url) {
+  log(`[FETCH] ${url.split('/').pop()}`, 'li');
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching ${url}`);
+  return new Uint8Array(await resp.arrayBuffer());
+}
+
+// ── Build flash images array ──────────────────────────────────
+async function buildImages() {
+  const isCustom = document.getElementById('tp-cus').classList.contains('on');
+
+  if (isCustom) {
+    // Read user-supplied files
+    const readFile = f => new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = e => res(new Uint8Array(e.target.result));
+      r.onerror = () => rej(new Error('File read error'));
+      r.readAsArrayBuffer(f);
+    });
+    return [
+      { data: await readFile(document.getElementById('fb').files[0]), address: 0x1000  },
+      { data: await readFile(document.getElementById('fp').files[0]), address: 0x8000  },
+      { data: await readFile(document.getElementById('fa').files[0]), address: 0xE000  },
+      { data: await readFile(document.getElementById('ff').files[0]), address: 0x10000 },
+    ];
+  }
+
+  // Preset: fetch from CDN
+  const bv = document.getElementById('bsel').value;
+  const fw = FW_MAP[selFwKey]?.[bv];
+  if (!fw) throw new Error('No firmware selected for this board variant.');
+
+  log('[FETCH] Downloading firmware parts from CDN…', 'lf');
+  const [bootData, partData, app0Data, fwData] = await Promise.all([
+    fetchBin(BOOT_BIN.url),
+    fetchBin(PART_BIN.url),
+    fetchBin(APP0_BIN.url),
+    fetchBin(fw.url),
+  ]);
+
+  return [
+    { data: bootData, address: 0x1000  },
+    { data: partData, address: 0x8000  },
+    { data: app0Data, address: 0xE000  },
+    { data: fwData,   address: 0x10000 },
+  ];
+}
+
+// ── Connect ───────────────────────────────────────────────────
+// FIX #4: doConnect was completely missing
+async function doConnect() {
+  if (!('serial' in navigator)) {
+    alert('Web Serial not supported. Use Chrome, Edge, or Opera on desktop.');
+    return;
+  }
+  const baud = parseInt(document.getElementById('baudSel').value, 10);
+  log('[CONNECT] Opening port picker…', 'lf');
+  try {
+    port = await navigator.serial.requestPort();
+    transport = new ESPLoader.Transport(port);
+    const loaderOpts = {
+      transport,
+      baudrate: baud,
+      terminal: {
+        clean() {},
+        writeLine(s) { log(s, 'li'); },
+        write(s) { log(s, 'li'); },
+      },
+    };
+    espLoader = new ESPLoader.ESPLoader(loaderOpts);
+    log('[CONNECT] Syncing with chip…', 'ld');
+    const chip = await espLoader.main();
+    log(`[CONNECT] Connected — chip: ${chip}`, 'lo');
+    setConnStatus(true, chip);
+  } catch (err) {
+    log(`[ERROR] ${err.message}`, 'le');
+    document.getElementById('d2').className = 'dot er';
+    document.getElementById('t2').textContent = 'Connection failed';
+    document.getElementById('diag').classList.add('show');
+    espLoader = null; transport = null; port = null;
+  }
+}
+
+// ── Force bootloader (DTR/RTS sequence) ───────────────────────
+// FIX #4: forceBootloader was completely missing
+async function forceBootloader() {
+  if (!port) { log('[BOOT] No port open.', 'lw'); return; }
+  try {
+    log('[BOOT] Sending DTR/RTS bootloader sequence…', 'lf');
+    // ESP32 boot sequence: DTR=low (GPIO0 low) + RTS pulse (reset)
+    await port.setSignals({ dataTerminalReady: false, requestToSend: true  });
+    await new Promise(r => setTimeout(r, 100));
+    await port.setSignals({ dataTerminalReady: true,  requestToSend: false });
+    await new Promise(r => setTimeout(r, 50));
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+    log('[BOOT] Sequence sent — try CONNECT again.', 'lo');
+  } catch (err) {
+    log(`[BOOT] Error: ${err.message}`, 'le');
+  }
+}
+
+// ── Disconnect ────────────────────────────────────────────────
+// FIX #4: doDisconnect was completely missing
+async function doDisconnect() {
+  try {
+    if (transport) await transport.disconnect();
+  } catch (_) {}
+  try {
+    if (port) await port.close();
+  } catch (_) {}
+  espLoader = null; transport = null; port = null;
+  setConnStatus(false);
+  log('[DISCONNECT] Port closed.', 'lw');
+}
+
+// ── Erase flash ───────────────────────────────────────────────
+// FIX #4: doErase was completely missing
+async function doErase() {
+  if (!espLoader) { log('[ERASE] Not connected.', 'lw'); return; }
+  setBusy(true);
+  log('[ERASE] Erasing flash — this takes ~10 seconds…', 'lw');
+  setProgress(0, 'Erasing…');
+  try {
+    await espLoader.eraseFlash();
+    setProgress(100, 'Erase complete');
+    log('[ERASE] Flash erased successfully.', 'lo');
+  } catch (err) {
+    log(`[ERASE ERROR] ${err.message}`, 'le');
+    setProgress(0, 'Erase failed');
+  } finally {
+    setBusy(false);
+  }
+}
+
+// ── Flash firmware ────────────────────────────────────────────
+// FIX #4: doFlash was completely missing
+async function doFlash() {
+  if (!espLoader) { log('[FLASH] Not connected.', 'lw'); return; }
+  setBusy(true);
+  setProgress(0, 'Fetching binaries…');
+  document.getElementById('term').innerHTML = '';
+  log('[FLASH] Starting flash sequence…', 'lf');
+
+  try {
+    const images = await buildImages();
+
+    // Flatten all images into the format esptool-js expects
+    const fileArray = images.map(img => ({
+      data:    img.data,
+      address: img.address,
+    }));
+
+    log('[FLASH] Writing to flash…', 'lf');
+    const flashOpts = {
+      fileArray,
+      flashSize:    'keep',
+      flashMode:    'keep',
+      flashFreq:    'keep',
+      eraseAll:     false,
+      compress:     true,
+      reportProgress(fileIndex, written, total) {
+        const pct = (written / total) * 100;
+        setProgress(pct, `Writing part ${fileIndex + 1}/${fileArray.length}…`);
+      },
+      calculateMD5Hash(image) {
+        return CryptoJS.MD5(CryptoJS.lib.WordArray.create(image)).toString();
+      },
+    };
+
+    await espLoader.writeFlash(flashOpts);
+
+    setProgress(100, 'Flash complete!');
+    log('[FLASH] ✓ Firmware written successfully!', 'lo');
+
+    // Hard reset
+    try { await espLoader.hardReset(); } catch (_) {}
+    log('[FLASH] Device reset — unplug / replug or press RST to boot.', 'lo');
+
+    goTo(4);
+  } catch (err) {
+    log(`[FLASH ERROR] ${err.message}`, 'le');
+    setProgress(0, 'Flash failed — see log');
+  } finally {
+    setBusy(false);
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────
+updateFwInfo();
+</script>
+</body>
+</html>
